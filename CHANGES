@@ -1,0 +1,16 @@
+.03
+
+Can now capture test output in a veriety of ways, although at the moment I'm
+only including one way as I think the other way is quite sucky.
+
+added capturing of skip, and todo_skip
+
+big changes resulting in better handling of everything
+
+.02
+
+made the diag comparison output nicer
+
+.01
+
+First release

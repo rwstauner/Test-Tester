@@ -2,10 +2,26 @@ use strict;
 
 package Test::Tester::Capture;
 
-use vars qw( @ISA $Result @EXPORT);
+use vars qw( @ISA @EXPORT);
 @ISA = qw( Test::Builder Exporter );
-@EXPORT = qw( $Result );
 
+# Make Test::Tester::Capture thread-safe for ithreads.
+BEGIN {
+	use Config;
+	if( $] >= 5.008 && $Config{useithreads} ) {
+		require threads;
+		require threads::shared;
+		threads::shared->import;
+	}
+	else {
+		*share = sub { 0 };
+		*lock  = sub { 0 };
+	}
+}
+
+my $Curr_Test = 0;      share($Curr_Test);
+my @Test_Results = ();  share(@Test_Results);
+my $Prem_Diag = {diag => ""};	 share($Curr_Test);
 
 sub new
 {
@@ -13,30 +29,145 @@ sub new
 }
 
 sub ok {
-	my $self = shift;
+	my($self, $test, $name) = @_;
 
-	if ($Result->{tested})
-	{
-		Test::Tester::save_result();
+	# $test might contain an object which we don't want to accidentally
+	# store, so we turn it into a boolean.
+	$test = $test ? 1 : 0;
+
+	lock $Curr_Test;
+	$Curr_Test++;
+
+	my($pack, $file, $line) = $self->caller;
+
+	my $todo = $self->todo($pack);
+
+	my $result = {};
+	share($result);
+
+	unless( $test ) {
+		@$result{ 'ok', 'actual_ok' } = ( ( $todo ? 1 : 0 ), 0 );
 	}
-	my ($ok, $name) = @_;
-	$Result->{ok} = $ok;
-	$Result->{name} = $name;
-	$Result->{tested} = 1;
-	$Result->{diag} ||= "";
-#	$Result->{type} = "";
+	else {
+		@$result{ 'ok', 'actual_ok' } = ( 1, $test );
+	}
 
-	return $ok;
+	if( defined $name ) {
+		$name =~ s|#|\\#|g;	 # # in a name can confuse Test::Harness.
+		$result->{name} = $name;
+	}
+	else {
+		$result->{name} = '';
+	}
+
+	if( $todo ) {
+		my $what_todo = $todo;
+		$result->{reason} = $what_todo;
+		$result->{type}   = 'todo';
+	}
+	else {
+		$result->{reason} = '';
+		$result->{type}   = '';
+	}
+
+	$Test_Results[$Curr_Test-1] = $result;
+
+	unless( $test ) {
+		my $msg = $todo ? "Failed (TODO)" : "Failed";
+		$result->{fail_diag} = ("	$msg test ($file at line $line)\n");
+	} 
+
+	$result->{diag} = "";
+	return $test ? 1 : 0;
+
+	return $test ? 1 : 0;
+}
+
+sub skip {
+	my($self, $why) = @_;
+	$why ||= '';
+
+	lock($Curr_Test);
+	$Curr_Test++;
+
+	my %result;
+	share(%result);
+	%result = (
+		'ok'	  => 1,
+		actual_ok => 1,
+		name	  => '',
+		type	  => 'skip',
+		reason	=> $why,
+		diag    => "",
+	);
+	$Test_Results[$Curr_Test-1] = \%result;
+
+	return 1;
+}
+
+sub todo_skip {
+	my($self, $why) = @_;
+	$why ||= '';
+
+	lock($Curr_Test);
+	$Curr_Test++;
+
+	my %result;
+	share(%result);
+	%result = (
+		'ok'	  => 1,
+		actual_ok => 0,
+		name	  => '',
+		type	  => 'todo_skip',
+		reason	=> $why,
+		diag    => "",
+	);
+
+	$Test_Results[$Curr_Test-1] = \%result;
+
+	return 1;
 }
 
 sub diag {
-	my $self = shift;
+	my($self, @msgs) = @_;
+	return unless @msgs;
 
-	my @diag = @_;
-	my $diag = join("", @diag);
-	$Result->{diag} .= $diag;
+	# Prevent printing headers when compiling (i.e. -c)
+	return if $^C;
+
+	# Escape each line with a #.
+	foreach (@msgs) {
+		$_ = 'undef' unless defined;
+	}
+
+	push @msgs, "\n" unless $msgs[-1] =~ /\n\Z/;
+
+	my $result = $Curr_Test ? $Test_Results[$Curr_Test - 1] : $Prem_Diag;
+
+	$result->{diag} .= join("", @msgs);
 
 	return 0;
+}
+
+sub details {
+	return @Test_Results;
+}
+
+sub premature
+{
+	return $Prem_Diag->{diag};
+}
+
+sub current_test
+{
+	die "Don't try to change the test number!";
+}
+
+sub reset
+{
+	$Curr_Test = 0;
+	@Test_Results = ();
+	$Prem_Diag = {diag => ""};
 }
 
 1;
@@ -47,13 +178,17 @@ __END__
 
 Test::Tester::Capture - Help testing test modules built with Test::Builder
 
-=head1 NOTIHING TO SEE HERE
+=head1 DESCRIPTION
 
-Please read the docs in Test::Tester to find out more.
+This is a subclass of Test::Builder that overrides many of the methods so
+that they don't output anything. It also keeps track of it's own set of test
+results so that you can use Test::Builder based modules to perform tests on
+other Test::Builder based modules.
 
 =head1 AUTHOR
 
-The rest copywrite 2003 Fergal Daly <fergal@esatclear.ie>.
+Most of the code here was lifted straight from Test::Builder and then had
+chunks removed by Fergal Daly <fergal@esatclear.ie>.
 
 =head1 LICENSE
 

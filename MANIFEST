@@ -1,6 +1,10 @@
 lib/Test/Tester.pm
+lib/Test/Tester/CaptureRunner.pm
 lib/Test/Tester/Capture.pm
-Makefile.PL
-MANIFEST
-README
 t/run_test.t
+t/check_tests.t
+MANIFEST
+Makefile.PL
+CHANGES
+README
+TODO

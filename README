@@ -1,7 +1,7 @@
 This module makes it easier to test a test module.
 
-I'm quite unsure if I've gone about this completely the wrong way, so how
-you initialise the test capture stuff will most likely change.
+I'm unsure if the correct approach for capturing the results and output of
+Test::Builder tests, so how you initialise the test capture stuff may change
+change again.
 
 The actual comparions functions shouldn't change much at all.
-

@@ -1,63 +1,40 @@
-# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.8 2003/03/02 17:26:41 fergal Exp $
+# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.15 2003/03/05 02:29:01 fergal Exp $
 use strict;
 
 package Test::Tester;
 
 use Test::Builder;
-use Test::Tester::Capture qw( $Result );
+use Test::Tester::CaptureRunner;
+
 require Exporter;
 
-use vars qw( @ISA @EXPORT $VERSION $Result );
+use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.01";
+$VERSION = "0.03";
 @EXPORT = qw( run_tests check_tests check_test cmp_results );
 @ISA = qw( Exporter );
 
-my @PreviousResults;
-$Result = {};
-
 my $Test = Test::Builder->new;
 
+my $runner;
 sub capture
 {
+	$runner = Test::Tester::CaptureRunner->new;
 	return Test::Tester::Capture->new;
 }
 
-sub save_result
+sub fh
 {
-	if (%$Result)
-	{
-		push(@PreviousResults, $Result);
-		$Result = {};
-	}
+	# experiment with capturing output, I don't like it
+	$runner = Test::Tester::FHRunner->new;
+
+	return $Test;
 }
 
 sub run_tests
 {
-	my $test = shift;
-	my $name = shift || "";
-
-	my $res_start = $#PreviousResults + 1;
-
-	if (%$Result)
-	{
-		require Data::Dumper;
-		warn "Result is contaminated before test\n".Data::Dumper::Dumper($Result);
-		$Result = {};
-	}
-
-	$Result->{expected_name} = $name;
-	$Result->{tested} = 0;
-
-	&$test();
-
-	save_result();
-
-	my $res_end = $#PreviousResults;
-
-	my $result = $Result;
-
-	return @PreviousResults[$res_start..$res_end];
+	$runner->run_tests(@_);
+	return ($runner->get_premature, $runner->get_results);
 }
 
 sub check_test
@@ -66,9 +43,15 @@ sub check_test
 	my $expect = shift;
 	my $name = shift;
 
-	local $Test::Builder::Level = $Test::Builder::Level + 1;
+	my ($prem, @results) = do
+	{
+		local $Test::Builder::Level = $Test::Builder::Level + 1;
+		check_tests($test, [$expect], $name);
+	};
 
-	check_tests($test, [$expect], $name);
+	$Test->is_num(scalar @results, 1, "Test '$name@ has only 1 test");
+
+	return ($prem, @results);
 }
 
 sub check_tests
@@ -77,53 +60,55 @@ sub check_tests
 	my $expects = shift;
 	my $name = shift;
 
-	my (@results) = eval {
-		local $Test::Builder::Level = $Test::Builder::Level + 1;
-		run_tests($test, $name);
-	};
+	my ($prem, @results) = eval { run_tests($test, $name) };
 
 	$Test->ok(! $@, "Test '$name' completed") || $Test->diag($@);
-
-	$Test->ok($results[0]->{tested}, "Test '$name' gives a complete result");
+	$Test->ok(! length($prem), "Test '$name' no premature diagostication") ||
+		$Test->diag("Before any testing anything, your tests said\n$prem");
 
 	local $Test::Builder::Level = $Test::Builder::Level + 1;
 	cmp_results(\@results, $expects, $name);
-	return @results;
+	return ($prem, @results);
+}
+
+sub cmp_field
+{
+	my ($result, $expect, $field, $desc) = @_;
+
+	if (defined $expect->{$field})
+	{
+		$Test->is_eq($result->{$field}, $expect->{$field},
+			"$desc compare $field");
+	}
 }
 
 sub cmp_result
 {
-	my ($result, $expect, $name, $test_num) = @_;
+	my ($result, $expect, $name) = @_;
 
-	$test_num = defined($test_num) ? " $test_num of" : "";
+	my $sub_name = $result->{name} || "";
 
-	defined($expect->{ok}) || die "No expected value for ok in '$name'";
+	my $desc = "subtest '$sub_name' of '$name'";
+	cmp_field($result, $expect, "ok", $desc);
 
-	if ($result->{tested})
+	cmp_field($result, $expect, "actual_ok", $desc);
+
+	cmp_field($result, $expect, "type", $desc);
+
+	cmp_field($result, $expect, "reason", $desc);
+
+	cmp_field($result, $expect, "name", $desc);
+
+	if (defined $expect->{diag})
 	{
-		$Test->ok( ! ($result->{ok} xor $expect->{ok}),
-			"Test$test_num '$name' correct result" ) ||
-			$Test->diag(<<EOM);
-Expected result: '$expect->{ok}'
-Got result     : '$result->{ok}'
+		$Test->ok($result->{diag} eq $expect->{diag},
+			"subtest '$sub_name' of '$name' compare diag") ||
+				$Test->diag(<<EOM);
+Expected diag:
+$expect->{diag}
+Got diag:
+$result->{diag}
 EOM
-
-		if (defined $name)
-		{
-			$Test->is_eq($result->{name}, $name,
-				"Test$test_num '$name' correct name");
-		}
-
-		if (defined $expect->{diag})
-		{
-			$Test->is_eq($result->{diag}, $expect->{diag}, "Test$test_num '$name' correct diag");
-		}
-	}
-	else
-	{
-		$Test->fail("Test$test_num '$name' didn't test, cannot check result");
-		$Test->fail("Test$test_num '$name' didn't test, cannot check name") if defined($name);
-		$Test->fail("Test$test_num '$name' didn't test, cannot compare diag") if defined $expect->{diag};
 	}
 }
 
@@ -139,18 +124,8 @@ sub cmp_results
 		my $result = $results->[$i];
 
 		local $Test::Builder::Level = $Test::Builder::Level + 1;
-		cmp_result($result, $expect, $name, $i + 1);
+		cmp_result($result, $expect, $name);
 	}
-}
-
-sub get_result
-{
-	return $Result;
-}
-
-sub get_all_results
-{
-	return @PreviousResults;
 }
 
 ######## nicked from Test::More
@@ -224,10 +199,10 @@ Test::Tester - Help testing test modules built with Test::Builder
 If you have written a test module based on Test::Builder then Test::Tester
 makes it easier for you to test your tests. It provides an object from
 Test::Tester::Capture which inherits from Test::Builder but overrides the
-ok() and diag() methods so that it can prevent test output and also capture
-test results and diagnostics for examination.
+the methods your test module will call so that it can prevent test output
+and also capture test results and diagnostics for examination.
 
-=head1 HOW TO USE IT
+=head1 HOW TO USE
 
 Make your module use the Test::Tester::Capture object instead of the
 Test::Builder one. How to do this depends on your module but assuming that
@@ -245,74 +220,91 @@ should allow your test scripts to do
 
 and after that any tests inside your module will captured.
 
+=begin _scrapped_for_now
+
+=head1 HOW TO USE THE HORRIBLE NEW WAY
+
+There is now another way to use this, maybe it's a better way, I don't know.
+Just do a Test::Tester::fh() and it then it'll be set up to run in
+filehandle capture mode. This means that when you run a test using one of
+the functions provided below, the output form Test::Builder will be
+captured. The results that are returned are exactly what you get from
+Test::Builder's details method but each result also has it's diagnostic
+output added to the hash under the 'diag' key. For failed tests, the failure
+notice is removed.
+
+This is another quite dodgy way of doing things as it fiddles with
+Test::Builder's current_test counter and does nasty things to it's
+@Test_Result array.
+
+=end
+
 =head1 TEST RESULTS
 
 Some of the functions exported return catured test results. The results of
-each test is captured in a hash can include the following fields:
-
-=over 4
-
-=item tested
-
-This is 1 if a test was actually carried, 0 otherwise
-
-=item ok
-
-This will be true if the captured test passed, false otherwise
-
-=item name
-
-This is the name of the test, as supplied to ok
-
-=item diag
-
-Any diagnostics output by the test
-
-=back
+each test is captured in a hash and is exactly the same as the results
+returned by Test::Builder's details method with an extra field B<diag>
+containing any diagnostics output for that test.
 
 =head1 EXPORTED FUNCTIONS
 
-=over 4 
+=head3 cmp_result(\%result, \%expect, $name)
 
-=item cmp_result(\%result, \%expect, $name)
+\%result is a ref to a test result hash.
 
-\%result is a ref to a test result hash. \%expect is a ref to an
-hash of expected values for the test result. cmp_result checks that a test
-result checks that the result was actually produced and that it matches the
-expected result. If any differences are found it outputs diagnostics. You
-may leave out the "name" or "diag" field from the expected result if you
-don't want to test them.
+\%expect is a ref to a hash of expected values for the test result.
 
-=item cmp_results(\@results, \@expects, $name)
+cmp_result compares the result with the expected values. If any differences
+are found it outputs diagnostics. You may leave out any field from the
+expetced result and cmp_result will not do the comparison of that field.
 
-\@results is a ref to an array of test results. \@expects is a ref to an
-array of hash refs. cmp_results checks that the results match the expected
-results and if any differences are found it outputs diagnostics. It first
-checks that the number of elements in \@results and \@expects is the same.
-Then it goes through each result checking it against the expected result as
-in cmp_result() above.
+=head3 cmp_results(\@results, \@expects, $name)
 
-=item run_tests(\&test_sub, $name)
+\@results is a ref to an array of test results.
 
-\&test_sub is a reference to a subroutine. $name is a string. run_tests runs
-the subroutine in $test_sub and returns an B<ARRAY> of test results. It may
-run more than 1 test. If you only run 1 test it run_tests still returns an
-B<ARRAY>.
+\@expects is a ref to an array of hash refs.
 
-=item check_tests(\&test_sub, \@expects, $name)
+cmp_results checks that the results match the expected results and if any
+differences are found it outputs diagnostics. It first checks that the
+number of elements in \@results and \@expects is the same. Then it goes
+through each result checking it against the expected result as in
+cmp_result() above.
 
-\&test_sub is a reference to a subroutine. \@expect is a ref to an array of
-hash refs which are expected test results. check_test combines run_test and
-cmp_tests into a single call.
+=head3 ($prem, @results) = run_tests(\&test_sub, $name)
 
-=item check_test(\&test_sub, \%expect, $name)
+\&test_sub is a reference to a subroutine.
 
-\&test_sub is a reference to a subroutine. \%expect is a ref to an hash of
-expected values for the test result. check_test is a wrapper around
-check_tests. It combines run_tests and cmp_tests into a single call. It
-assumes that only a single test is run inside \&test_sub.
+$name is a string.
 
-=back
+run_tests runs the subroutine in $test_sub and captures the results of any
+tests inside it. There may be more than 1 test inside.
+
+$prem is a string containg any diagnostic output from before the first test.
+
+@results is an array of test results.
+
+=head3 ($prem, @results) = check_tests(\&test_sub, \@expects, $name)
+
+\&test_sub is a reference to a subroutine.
+
+\@expect is a ref to an array of hash refs which are expected test results.
+
+check_tests combines run_tests and cmp_tests into a single call. It also
+checks if the tests died at any stage.
+
+It returns the same values as run_tests, so you can do further tests.
+
+=head3 ($prem, @results) = check_test(\&test_sub, \%expect, $name)
+
+\&test_sub is a reference to a subroutine. 
+
+\%expect is a ref to an hash of expected values for the test result.
+
+check_test is a wrapper around check_tests. It combines run_tests and
+cmp_tests into a single call, checking if the test died. It assumes that
+only a single test is run inside \&test_sub and test to make this is true.
+
+It returns the same values as run_tests, so you can do further tests.
 
 =head1 SEE ALSO
 
@@ -320,7 +312,11 @@ Test::Builder
 
 =head1 AUTHOR
 
-Plan handling lifted from Test::More, written by Michael G Schwern
+Plan handling lifted from Test::More. written by Michael G Schwern
+<schwern@pobox.com>.
+
+Test::Tester::Capture is a cut down and hacked up version of Test::Builder,
+written by chromatic <chromatic@wgz.org> and Michael G Schwern
 <schwern@pobox.com>.
 
 The rest copywrite 2003 Fergal Daly <fergal@esatclear.ie>.

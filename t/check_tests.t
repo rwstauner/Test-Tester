@@ -1,0 +1,99 @@
+use strict;
+
+use Test::Builder;
+
+use Test::Tester;
+
+use Data::Dumper qw(Dumper);
+
+my $test = Test::Builder->new;
+$test->plan(tests => 83);
+
+my $cap;
+
+$cap = Test::Tester->capture;
+
+my @tests = (
+	[
+		'pass',
+		'$cap->ok(1, "pass");',
+		{
+			name => "pass",
+			ok => 1,
+			actual_ok => 1,
+			reason => "",
+			type => "",
+			diag => "",
+		},
+	],
+	[
+		'pass diag',
+		'$cap->ok(1, "pass diag");
+		$cap->diag("pass diag1");
+		$cap->diag("pass diag2");',
+		{
+			name => "pass diag",
+			ok => 1,
+			actual_ok => 1,
+			reason => "",
+			type => "",
+			diag => "pass diag1\npass diag2\n",
+		},
+	],
+	[
+		'fail',
+		'$cap->ok(0, "fail");
+		$cap->diag("fail diag");',
+		{
+			name => "fail",
+			ok => 0,
+			actual_ok => 0,
+			reason => "",
+			type => "",
+			diag => "fail diag\n",
+		},
+	],
+	[
+		'skip',
+		'$cap->skip("just because");',
+		{
+			name => "",
+			ok => 1,
+			actual_ok => 1,
+			reason => "just because",
+			type => "skip",
+			diag => "",
+		},
+	],
+	[
+		'todo_skip',
+		'$cap->todo_skip("why not");',
+		{
+			name => "",
+			ok => 1,
+			actual_ok => 0,
+			reason => "why not",
+			type => "todo_skip",
+			diag => "",
+		},
+	],
+);
+
+my $big_code = "";
+my @big_expect;
+
+foreach my $test (@tests)
+{
+	my ($name, $code, $expect) = @$test;
+
+	$big_code .= "$code\n";
+	push(@big_expect, $expect);
+
+	my $test_sub = eval "sub {$code}";
+
+	check_test($test_sub, $expect, $name);
+}
+
+my $big_test_sub = eval "sub {$big_code}";
+
+check_tests($big_test_sub, \@big_expect, "run all");

@@ -1,4 +1,4 @@
-# $Header: /home/fergal/my/cvs/teng/Makefile.PL,v 1.4 2003/01/19 20:39:20 fergal Exp $
+# $Header: /home/fergal/my/cvs/Test-Tester/Makefile.PL,v 1.1 2003/03/02 23:45:49 fergal Exp $
 
 use ExtUtils::MakeMaker;
 
