@@ -1,4 +1,4 @@
-# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.22 2003/03/20 12:05:20 fergal Exp $
+# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.24 2003/07/27 20:01:03 fergal Exp $
 use strict;
 
 package Test::Tester;
@@ -10,7 +10,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.06";
+$VERSION = "0.07";
 @EXPORT = qw( run_tests check_tests check_test cmp_results );
 @ISA = qw( Exporter );
 
@@ -254,7 +254,7 @@ Test::Builder's current_test counter and does nasty things to it's
 
 =head1 TEST RESULTS
 
-Some of the functions exported return catured test results. The results of
+Some of the functions exported return captured test results. The results of
 each test is captured in a hash and is exactly the same as the results
 returned by Test::Builder's details method with an extra field B<diag>
 containing any diagnostics output for that test.
@@ -269,7 +269,7 @@ containing any diagnostics output for that test.
 
 cmp_result compares the result with the expected values. If any differences
 are found it outputs diagnostics. You may leave out any field from the
-expetced result and cmp_result will not do the comparison of that field.
+expected result and cmp_result will not do the comparison of that field.
 
 =head3 cmp_results(\@results, \@expects, $name)
 
@@ -322,7 +322,7 @@ It returns the same values as run_tests, so you can do further tests.
 =head1 SEE ALSO
 
 Test::Builder the source of testing goodness. Test::Builder::Tester for an
-alternative approach to the prblem takled by Test::Tester.
+alternative approach to the problem tackled by Test::Tester.
 
 =head1 AUTHOR
 

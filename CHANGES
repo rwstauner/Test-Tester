@@ -1,21 +1,25 @@
-.06
+0.07
+
+Spellchecked the POD
+
+0.06
 
 Allow getting current_test but still die if someone tries to set it. Needed
 for testing Test::Warn::None
 
-.05
+0.05
 
 Added string length length to the diags diags
 
 Corrected level problem cmp_results
 
-.04
+0.04
 
 Got rid of undef warning when no name supplied
 
 got rid of unneeded result counting in hceck_test
 
-.03
+0.03
 
 Can now capture test output in a veriety of ways, although at the moment I'm
 only including one way as I think the other way is quite sucky.
@@ -24,10 +28,10 @@ added capturing of skip, and todo_skip
 
 big changes resulting in better handling of everything
 
-.02
+0.02
 
 made the diag comparison output nicer
 
-.01
+0.01
 
 First release
