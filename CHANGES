@@ -1,3 +1,7 @@
+0.101
+
+Added colourisation support.
+
 0.10
 
 Automatically add \n to the expected diagnostics if it's not already there,

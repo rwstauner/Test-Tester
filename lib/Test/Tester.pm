@@ -1,4 +1,3 @@
-# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.24 2003/07/27 20:01:03 fergal Exp $
 use strict;
 
 package Test::Tester;
@@ -11,7 +10,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.10";
+$VERSION = "0.101";
 @EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
@@ -27,6 +26,20 @@ my $want_space = $ENV{TESTTESTERSPACE};
 sub show_space
 {
   $want_space = 1;
+}
+
+my $colour = '';
+my $reset = '';
+
+if (my $want_colour = $ENV{TESTTESTERCOLOUR} || $ENV{TESTTESTERCOLOUR})
+{
+	if (eval "require Term::ANSIColor")
+	{
+		my ($f, $b) = split(",", $want_colour);
+		$colour = Term::ANSIColor::color($f).Term::ANSIColor::color("on_$b");
+		$reset = Term::ANSIColor::color("reset");
+	}
+
 }
 
 sub new_new
@@ -151,16 +164,18 @@ sub cmp_result
 			my $elen = length($exp);
 			for ($got, $exp)
 			{
-				if ($want_space)
-				{
-				  $_ = escape($_);
-        }
-        else
-        {
-          my @lines = split("\n", $_);
-          $_ = join("\n", map {"'$_'"} @lines);
-        }
-			}
+	      my @lines = split("\n", $_);
+   		  $_ = join("\n", map {
+  				if ($want_space)
+	  			{
+		  		  $_ = $colour.escape($_).$reset;
+	      	}
+	      	else
+      		{
+     		    "'$colour$_$reset'"
+          }
+        } @lines);
+      }
 
 			$Test->diag(<<EOM);
 Got diag ($glen bytes):
@@ -179,15 +194,15 @@ sub escape
   my $res = '';
   for my $char (split("", $str))
   {
-    my $c = ord($char);
-    if(($c>32 and $c<125) or $c == 10)
-    {
-      $res .= $char;
-    }
-    else
-    {
-      $res .= sprintf('\x{%x}', $c)
-    }
+	my $c = ord($char);
+	if(($c>32 and $c<125) or $c == 10)
+	{
+	  $res .= $char;
+	}
+	else
+	{
+	  $res .= sprintf('\x{%x}', $c)
+	}
   }
   return $res;
 
@@ -210,41 +225,41 @@ sub cmp_results
 
 ######## nicked from Test::More
 sub plan {
-    my(@plan) = @_;
+	my(@plan) = @_;
 
-    my $caller = caller;
+	my $caller = caller;
 
-    $Test->exported_to($caller);
+	$Test->exported_to($caller);
 
-    my @imports = ();
-    foreach my $idx (0..$#plan) {
-        if( $plan[$idx] eq 'import' ) {
-            my($tag, $imports) = splice @plan, $idx, 2;
-            @imports = @$imports;
-            last;
-        }
-    }
+	my @imports = ();
+	foreach my $idx (0..$#plan) {
+		if( $plan[$idx] eq 'import' ) {
+			my($tag, $imports) = splice @plan, $idx, 2;
+			@imports = @$imports;
+			last;
+		}
+	}
 
-    $Test->plan(@plan);
+	$Test->plan(@plan);
 
-    __PACKAGE__->_export_to_level(1, __PACKAGE__, @imports);
+	__PACKAGE__->_export_to_level(1, __PACKAGE__, @imports);
 }
 
 sub import {
-    my($class) = shift;
+	my($class) = shift;
 		{
 			no warnings 'redefine';
 			*Test::Builder::new = \&new_new;
 		}
-    goto &plan;
+	goto &plan;
 }
 
 sub _export_to_level
 {
-      my $pkg = shift;
-      my $level = shift;
-      (undef) = shift;                  # redundant arg
-      my $callpkg = caller($level);
+	  my $pkg = shift;
+	  my $level = shift;
+	  (undef) = shift;				  # redundant arg
+	  my $callpkg = caller($level);
       $pkg->export($callpkg, @_);
 }
 
@@ -467,8 +482,7 @@ trailing whitesapce. So in this example
 
 it is quite clear that there is a space at the end of the first string.
 Another way to solve this problem is to use colour and inverse video on an
-ANSI terminal. I initially tried that but realised that while it looks nice,
-using quotes is portable, and doesn't require any extra modules.
+ANSI terminal, see below COLOUR below if you want this.
 
 Unfortunately this is sometimes not enough, neither colour nor quotes will
 help you with problems involving tabs, other non-printing characters and
@@ -484,6 +498,18 @@ variable to be a true value. The example above would then look like
   # abcd\x{20}
   # Expected diag (4 bytes):
   # abcd
+
+=head1 COLOUR
+
+If you prefer to use colour as a means of finding tricky whitespace
+characters then you can set the TESTTESTCOLOUR environment variable to a
+comma separated pair of colours, the first for the foreground, the second
+for the background. For example "white,red" will print white text on a red
+background. This requires the Term::ANSIColor module. You can specify any
+colour that would be acceptable to the Term::ANSIColor::color function.
+
+If you spell colour differently, that's no problem. The TESTTESTERCOLOR
+variable also works (if both are set then the British spelling wins out).
 
 =head1 EXPORTED FUNCTIONS
 

@@ -188,8 +188,7 @@ SPACES AND TABS
 
     it is quite clear that there is a space at the end of the first string.
     Another way to solve this problem is to use colour and inverse video on an
-    ANSI terminal. I initially tried that but realised that while it looks nice,
-    using quotes is portable, and doesn't require any extra modules.
+    ANSI terminal, see below COLOUR below if you want this.
 
     Unfortunately this is sometimes not enough, neither colour nor quotes will
     help you with problems involving tabs, other non-printing characters and
@@ -205,6 +204,17 @@ SPACES AND TABS
       # abcd\x{20}
       # Expected diag (4 bytes):
       # abcd
+
+COLOUR
+    If you prefer to use colour as a means of finding tricky whitespace
+    characters then you can set the TESTTESTCOLOUR environment variable to a
+    comma separated pair of colours, the first for the foreground, the second
+    for the background. For example "white,red" will print white text on a red
+    background. This requires the Term::ANSIColor module. You can specify any
+    colour that would be acceptable to the Term::ANSIColor::color function.
+
+    If you spell colour differently, that's no problem. The TESTTESTERCOLOR
+    variable also works (if both are set then the British spelling wins out).
 
 EXPORTED FUNCTIONS
    ($prem, @results) = run_tests(\&test_sub, $name)
