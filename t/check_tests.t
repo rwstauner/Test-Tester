@@ -7,7 +7,7 @@ use Test::Tester;
 use Data::Dumper qw(Dumper);
 
 my $test = Test::Builder->new;
-$test->plan(tests => 83);
+$test->plan(tests => 78);
 
 my $cap;
 

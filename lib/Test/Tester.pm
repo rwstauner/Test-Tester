@@ -1,4 +1,4 @@
-# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.15 2003/03/05 02:29:01 fergal Exp $
+# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.21 2003/03/18 11:16:37 fergal Exp $
 use strict;
 
 package Test::Tester;
@@ -10,7 +10,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.03";
+$VERSION = "0.04";
 @EXPORT = qw( run_tests check_tests check_test cmp_results );
 @ISA = qw( Exporter );
 
@@ -41,15 +41,13 @@ sub check_test
 {
 	my $test = shift;
 	my $expect = shift;
-	my $name = shift;
+	my $name = shift || "";
 
 	my ($prem, @results) = do
 	{
 		local $Test::Builder::Level = $Test::Builder::Level + 1;
 		check_tests($test, [$expect], $name);
 	};
-
-	$Test->is_num(scalar @results, 1, "Test '$name@ has only 1 test");
 
 	return ($prem, @results);
 }
@@ -58,7 +56,7 @@ sub check_tests
 {
 	my $test = shift;
 	my $expects = shift;
-	my $name = shift;
+	my $name = shift || "";
 
 	my ($prem, @results) = eval { run_tests($test, $name) };
 
@@ -89,26 +87,38 @@ sub cmp_result
 	my $sub_name = $result->{name} || "";
 
 	my $desc = "subtest '$sub_name' of '$name'";
-	cmp_field($result, $expect, "ok", $desc);
 
-	cmp_field($result, $expect, "actual_ok", $desc);
+	{
+		local $Test::Builder::Level = $Test::Builder::Level + 1;
 
-	cmp_field($result, $expect, "type", $desc);
+		cmp_field($result, $expect, "ok", $desc);
 
-	cmp_field($result, $expect, "reason", $desc);
+		cmp_field($result, $expect, "actual_ok", $desc);
 
-	cmp_field($result, $expect, "name", $desc);
+		cmp_field($result, $expect, "type", $desc);
+
+		cmp_field($result, $expect, "reason", $desc);
+
+		cmp_field($result, $expect, "name", $desc);
+	}
 
 	if (defined $expect->{diag})
 	{
-		$Test->ok($result->{diag} eq $expect->{diag},
-			"subtest '$sub_name' of '$name' compare diag") ||
-				$Test->diag(<<EOM);
-Expected diag:
-$expect->{diag}
-Got diag:
+		if (not $Test->ok($result->{diag} eq $expect->{diag},
+			"subtest '$sub_name' of '$name' compare diag")
+		)
+		{
+			my $glen = length($result->{diag});
+			my $elen = length($expect->{diag});
+
+			$Test->diag(<<EOM);
+Got diag ($glen bytes):
 $result->{diag}
+Expected diag ($elen bytes):
+$expect->{diag}
 EOM
+
+		}
 	}
 }
 
@@ -308,7 +318,8 @@ It returns the same values as run_tests, so you can do further tests.
 
 =head1 SEE ALSO
 
-Test::Builder
+Test::Builder the source of testing goodness. Test::Builder::Tester for an
+alternative approach to the prblem takled by Test::Tester.
 
 =head1 AUTHOR
 
