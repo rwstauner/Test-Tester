@@ -16,4 +16,5 @@ t/depth.t
 t/MyTest.pm
 t/run_test.t
 t/SmallTest.pm
+t/fail/fail.t
 TODO

@@ -139,6 +139,12 @@ TEST RESULTS
       Any diagnostics that were output for the test. This only includes
       diagnostics output after the test result is declared.
 
+      Note that Test::Builder ensures that any diagnostics end in a \n and so it
+      was essential that you have the final \n in your expected diagnostics.
+      From version 0.10 onwards, Test::Tester will add the \n if you forgot it.
+      Of course it will not add a \n if you are expecting no diagnostics. See
+      below for help tracking down hard to find space and tab related problems.
+
     depth
       This allows you to check that your test module is setting the correct
       value for $Test::Builder::Level and thus giving the correct file and line
@@ -167,6 +173,39 @@ TEST RESULTS
     contains any diagnostic output that came before the first test. This should
     usually be empty.
 
+SPACES AND TABS
+    Appearances can be deceptive, especially when it comes to emptiness. If you
+    are scratching your head trying to work out why Test::Tester is saying that
+    your diagnostics are wrong when they look perfectly right then the answer is
+    probably whitespace. From version 0.10 on, Test::Tester surrounds the
+    expected and got diag values with single quotes to make it easier to spot
+    trailing whitesapce. So in this example
+
+      # Got diag (5 bytes):
+      # 'abcd '
+      # Expected diag (4 bytes):
+      # 'abcd'
+
+    it is quite clear that there is a space at the end of the first string.
+    Another way to solve this problem is to use colour and inverse video on an
+    ANSI terminal. I initially tried that but realised that while it looks nice,
+    using quotes is portable, and doesn't require any extra modules.
+
+    Unfortunately this is sometimes not enough, neither colour nor quotes will
+    help you with problems involving tabs, other non-printing characters and
+    certain kinds of problems inherent in Unicode. To deal with this, you can
+    switch Test::Tester into a mode whereby all "tricky" characters are shown as
+    \{xx}. Tricky characters are those with ASCII code less than 33 or higher
+    than 126. This makes the output more difficult to read but much easier to
+    find subtle differences between strings. To turn on this mode either call
+    show_space() in your test script or set the TESTTESTERSPACE environment
+    variable to be a true value. The example above would then look like
+
+      # Got diag (5 bytes):
+      # abcd\x{20}
+      # Expected diag (4 bytes):
+      # abcd
+
 EXPORTED FUNCTIONS
    ($prem, @results) = run_tests(\&test_sub, $name)
     \&test_sub is a reference to a subroutine.
@@ -177,7 +216,8 @@ EXPORTED FUNCTIONS
     tests inside it. You can run more than 1 test inside this subroutine if you
     like.
 
-    $prem is a string containg any diagnostic output from before the first test.
+    $prem is a string containing any diagnostic output from before the first
+    test.
 
     @results is an array of test result hashes.
 
@@ -224,6 +264,10 @@ EXPORTED FUNCTIONS
     It returns the same values as run_tests, so you can further examine the test
     results if you need to.
 
+   show_space()
+    Turn on the escaping of characters as described in the SPACES AND TABS
+    section.
+
 HOW IT WORKS
     Normally, a test module (let's call it Test:MyStyle) calls
     Test::Builder->new to get the Test::Builder object. Test::MyStyle calls
@@ -246,7 +290,7 @@ SEE ALSO
     your test will output.
 
 AUTHOR
-    This module is copyright 2004 Fergal Daly <fergal@esatclear.ie>, some parts
+    This module is copyright 2005 Fergal Daly <fergal@esatclear.ie>, some parts
     are based on other people's work.
 
     Plan handling lifted from Test::More. written by Michael G Schwern

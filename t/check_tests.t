@@ -7,7 +7,7 @@ use Test::Tester;
 use Data::Dumper qw(Dumper);
 
 my $test = Test::Builder->new;
-$test->plan(tests => 88);
+$test->plan(tests => 105);
 
 my $cap;
 
@@ -39,6 +39,21 @@ my @tests = (
 			reason => "",
 			type => "",
 			diag => "pass diag1\npass diag2\n",
+			depth => 0,
+		},
+	],
+	[
+		'pass diag no \\n',
+		'$cap->ok(1, "pass diag");
+		$cap->diag("pass diag1");
+		$cap->diag("pass diag2");',
+		{
+			name => "pass diag",
+			ok => 1,
+			actual_ok => 1,
+			reason => "",
+			type => "",
+			diag => "pass diag1\npass diag2",
 			depth => 0,
 		},
 	],

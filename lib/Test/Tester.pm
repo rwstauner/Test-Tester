@@ -11,8 +11,8 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.09";
-@EXPORT = qw( run_tests check_tests check_test cmp_results );
+$VERSION = "0.10";
+@EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
 my $Test = Test::Builder->new;
@@ -21,6 +21,13 @@ my $Delegator = Test::Tester::Delegate->new;
 $Delegator->{Object} = $Test;
 
 my $runner = Test::Tester::CaptureRunner->new;
+
+my $want_space = $ENV{TESTTESTERSPACE};
+
+sub show_space
+{
+  $want_space = 1;
+}
 
 sub new_new
 {
@@ -129,26 +136,62 @@ sub cmp_result
 		cmp_field($result, $expect, "depth", $desc);
 	}
 
-	if (defined $expect->{diag})
+	if (defined(my $exp = $expect->{diag}))
 	{
-		if (not $Test->ok($result->{diag} eq $expect->{diag},
+		# if there actually is some diag then put a \n on the end if it's not
+		# there already
+
+		$exp .= "\n" if (length($exp) and $exp !~ /\n$/);
+		if (not $Test->ok($result->{diag} eq $exp,
 			"subtest '$sub_name' of '$name' compare diag")
 		)
 		{
-			my $glen = length($result->{diag});
-			my $elen = length($expect->{diag});
+			my $got = $result->{diag};
+			my $glen = length($got);
+			my $elen = length($exp);
+			for ($got, $exp)
+			{
+				if ($want_space)
+				{
+				  $_ = escape($_);
+        }
+        else
+        {
+          my @lines = split("\n", $_);
+          $_ = join("\n", map {"'$_'"} @lines);
+        }
+			}
 
 			$Test->diag(<<EOM);
 Got diag ($glen bytes):
-$result->{diag}
+$got
 Expected diag ($elen bytes):
-$expect->{diag}
+$exp
 EOM
 
 		}
 	}
 }
 
+sub escape
+{
+  my $str = shift;
+  my $res = '';
+  for my $char (split("", $str))
+  {
+    my $c = ord($char);
+    if(($c>32 and $c<125) or $c == 10)
+    {
+      $res .= $char;
+    }
+    else
+    {
+      $res .= sprintf('\x{%x}', $c)
+    }
+  }
+  return $res;
+
+}
 sub cmp_results
 {
 	my ($results, $expects, $name) = @_;
@@ -328,25 +371,6 @@ should allow your test scripts to do
 
 and after that any tests inside your module will captured.
 
-=begin _scrapped_for_now
-
-=head1 HOW TO USE THE HORRIBLE NEW WAY
-
-There is now another way to use this, maybe it's a better way, I don't know.
-Just do a Test::Tester::fh() and it then it'll be set up to run in
-filehandle capture mode. This means that when you run a test using one of
-the functions provided below, the output form Test::Builder will be
-captured. The results that are returned are exactly what you get from
-Test::Builder's details method but each result also has it's diagnostic
-output added to the hash under the 'diag' key. For failed tests, the failure
-notice is removed.
-
-This is another quite dodgy way of doing things as it fiddles with
-Test::Builder's current_test counter and does nasty things to it's
-@Test_Result array.
-
-=end
-
 =head1 TEST RESULTS
 
 The result of each test is captured in a hash. These hashes are the same as
@@ -390,6 +414,12 @@ These fields are exclusive to Test::Tester.
 Any diagnostics that were output for the test. This only includes
 diagnostics output B<after> the test result is declared.
 
+Note that Test::Builder ensures that any diagnostics end in a \n and so it
+was essential that you have the final \n in your expected diagnostics. From
+version 0.10 onwards, Test::Tester will add the \n if you forgot it. Of
+course it will not add a \n if you are expecting no diagnostics. See below
+for help tracking down hard to find space and tab related problems.
+
 =item depth
 
 This allows you to check that your test module is setting the correct value
@@ -421,6 +451,40 @@ element 1 (not 0). Element 0 will not be a hash it will be a string which
 contains any diagnostic output that came before the first test. This should
 usually be empty.
 
+=head1 SPACES AND TABS
+
+Appearances can be deceptive, especially when it comes to emptiness. If you
+are scratching your head trying to work out why Test::Tester is saying that
+your diagnostics are wrong when they look perfectly right then the answer is
+probably whitespace. From version 0.10 on, Test::Tester surrounds the
+expected and got diag values with single quotes to make it easier to spot
+trailing whitesapce. So in this example
+
+  # Got diag (5 bytes):
+  # 'abcd '
+  # Expected diag (4 bytes):
+  # 'abcd'
+
+it is quite clear that there is a space at the end of the first string.
+Another way to solve this problem is to use colour and inverse video on an
+ANSI terminal. I initially tried that but realised that while it looks nice,
+using quotes is portable, and doesn't require any extra modules.
+
+Unfortunately this is sometimes not enough, neither colour nor quotes will
+help you with problems involving tabs, other non-printing characters and
+certain kinds of problems inherent in Unicode. To deal with this, you can
+switch Test::Tester into a mode whereby all "tricky" characters are shown as
+\{xx}. Tricky characters are those with ASCII code less than 33 or higher
+than 126. This makes the output more difficult to read but much easier to
+find subtle differences between strings. To turn on this mode either call
+show_space() in your test script or set the TESTTESTERSPACE environment
+variable to be a true value. The example above would then look like
+
+  # Got diag (5 bytes):
+  # abcd\x{20}
+  # Expected diag (4 bytes):
+  # abcd
+
 =head1 EXPORTED FUNCTIONS
 
 =head3 ($prem, @results) = run_tests(\&test_sub, $name)
@@ -433,7 +497,7 @@ run_tests runs the subroutine in $test_sub and captures the results of any
 tests inside it. You can run more than 1 test inside this subroutine if you
 like.
 
-$prem is a string containg any diagnostic output from before the first test.
+$prem is a string containing any diagnostic output from before the first test.
 
 @results is an array of test result hashes.
 
@@ -484,6 +548,11 @@ only a single test is run inside \&test_sub and test to make this is true.
 It returns the same values as run_tests, so you can further examine the test
 results if you need to.
 
+=head3 show_space() 
+
+Turn on the escaping of characters as described in the SPACES AND TABS
+section.
+
 =head1 HOW IT WORKS
 
 Normally, a test module (let's call it Test:MyStyle) calls
@@ -509,7 +578,7 @@ B<exactly> what your test will output.
 
 =head1 AUTHOR
 
-This module is copyright 2004 Fergal Daly <fergal@esatclear.ie>, some parts
+This module is copyright 2005 Fergal Daly <fergal@esatclear.ie>, some parts
 are based on other people's work.
 
 Plan handling lifted from Test::More. written by Michael G Schwern

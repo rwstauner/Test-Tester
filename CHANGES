@@ -1,3 +1,13 @@
+0.10
+
+Automatically add \n to the expected diagnostics if it's not already there,
+because Test::Builder::diag does the same. Thanks to James FitzGibbon for
+the suggestion.
+
+Now it's much easier to spot trailing spaces in diagnostics and also
+possible to escape all "tricky" characters to make them easy to
+troubleshoot.
+
 0.09
 
 The depth calculation would die if it couldn't find the correct things in
@@ -12,7 +22,7 @@ dies, we will drop back to the correct test object.
 check_test was getting the Level wrong
 
 Made it all very nice so that don't have to worry about providing capture
-objects or any of that messiness. Thigs are automatically captured once
+objects or any of that messiness. Things are automatically captured once
 you're inside one of Test::Tester's testing routines.
 
 Added depth to allow testing $Test::Builder::Level.
