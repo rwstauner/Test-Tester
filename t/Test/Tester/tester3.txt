@@ -1,0 +1,33 @@
+1..8 todo 2 5;
+# Pass test
+ok 1
+# Todo test that passes
+ok 2 # (tester0.t at line 97 TODO?!)
+# Test that fails
+not ok 3
+# Test 3 got: '$VAR1 = '6';
+$VAR2 = '6';
+' (tester0.t at line 105)
+#   Expected: '$VAR1 = '6';
+$VAR2 = '5';
+'
+# Skipped tests
+ok 4 # skip
+# Todo Test that Fails
+not ok 5
+# Test 5 got: '$VAR1 = '12';
+' (tester0.t at line 124 *TODO*)
+#   Expected: '$VAR1 = '6';
+'
+# Failed test that skips the rest
+not ok 6
+# Test 6 got: '$VAR1 = '5';
+' (tester0.t at line 133)
+#   Expected: '$VAR1 = '6';
+'
+# A test to skip
+# Test invalid because of previous failure.
+ok 7 # skip
+# A not skip to skip
+# Test invalid because of previous failure.
+ok 8 # skip

@@ -1,10 +1,10 @@
-lib/Test/Tester.pm
-lib/Test/Tester/CaptureRunner.pm
-lib/Test/Tester/Capture.pm
-t/run_test.t
-t/check_tests.t
+lib/Docs/Site_SVD/Test_Tester.pm
 MANIFEST
 Makefile.PL
-CHANGES
 README
-TODO
+lib/Test/Tester.pm
+t/Test/Tester/tester.t
+t/Test/Tester/tester0.d
+t/Test/Tester/tester0.t
+t/Test/Tester/tester2.txt
+t/Test/Tester/tester3.txt

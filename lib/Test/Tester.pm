@@ -1,342 +1,448 @@
-# $Header: /home/fergal/my/cvs/Test-Tester/lib/Test/Tester.pm,v 1.21 2003/03/18 11:16:37 fergal Exp $
+#!perl
+#
+# Documentation, copyright and license is at the end of this file.
+#
+package  Test::Tester;
+
+use 5.001;
 use strict;
+use warnings;
+use warnings::register;
 
-package Test::Tester;
+use Test;
+use Data::Dumper;
+use Test::TestUtil;
 
-use Test::Builder;
-use Test::Tester::CaptureRunner;
+use vars qw($VERSION $DATE);
+$VERSION = '1.02';
+$DATE = '2003/06/12';
 
-require Exporter;
+#####
+# Because Test::TestUtil uses SelfLoader, the @ISA
+# method of inheriting Test::TestUtil has problems.
+#
+# Use AUTOLOAD inheritance technique below instead.
+#
+# use vars qw(@ISA);
+# @ISA = qw(Test::TestUtil);
 
-use vars qw( @ISA @EXPORT $VERSION );
+$Test::TestLevel = 1;
 
-$VERSION = "0.04";
-@EXPORT = qw( run_tests check_tests check_test cmp_results );
-@ISA = qw( Exporter );
-
-my $Test = Test::Builder->new;
-
-my $runner;
-sub capture
+####
+# Using an object to pass localized object data
+# between functions. Makes the functions reentrant
+# where out right globals can be clobbered when
+# used with different threads (processes??)
+#
+sub new
 {
-	$runner = Test::Tester::CaptureRunner->new;
-	return Test::Tester::Capture->new;
-}
+    my ($class, $test_log) = @_;
+    $class = ref($class) if ref($class);
 
-sub fh
-{
-	# experiment with capturing output, I don't like it
-	$runner = Test::Tester::FHRunner->new;
+    ###########
+    # $self->[0]  Keep and restore $Test::TESTOUT
+    # $self->[1]  test log file
+    # $self->[2]  skip rest of the tests
 
-	return $Test;
-}
+    my @self = ('','','','','');
+    my $self = bless \@self, $class;
 
-sub run_tests
-{
-	$runner->run_tests(@_);
-	return ($runner->get_premature, $runner->get_results);
-}
-
-sub check_test
-{
-	my $test = shift;
-	my $expect = shift;
-	my $name = shift || "";
-
-	my ($prem, @results) = do
-	{
-		local $Test::Builder::Level = $Test::Builder::Level + 1;
-		check_tests($test, [$expect], $name);
-	};
-
-	return ($prem, @results);
-}
-
-sub check_tests
-{
-	my $test = shift;
-	my $expects = shift;
-	my $name = shift || "";
-
-	my ($prem, @results) = eval { run_tests($test, $name) };
-
-	$Test->ok(! $@, "Test '$name' completed") || $Test->diag($@);
-	$Test->ok(! length($prem), "Test '$name' no premature diagostication") ||
-		$Test->diag("Before any testing anything, your tests said\n$prem");
-
-	local $Test::Builder::Level = $Test::Builder::Level + 1;
-	cmp_results(\@results, $expects, $name);
-	return ($prem, @results);
-}
-
-sub cmp_field
-{
-	my ($result, $expect, $field, $desc) = @_;
-
-	if (defined $expect->{$field})
-	{
-		$Test->is_eq($result->{$field}, $expect->{$field},
-			"$desc compare $field");
-	}
-}
-
-sub cmp_result
-{
-	my ($result, $expect, $name) = @_;
-
-	my $sub_name = $result->{name} || "";
-
-	my $desc = "subtest '$sub_name' of '$name'";
-
-	{
-		local $Test::Builder::Level = $Test::Builder::Level + 1;
-
-		cmp_field($result, $expect, "ok", $desc);
-
-		cmp_field($result, $expect, "actual_ok", $desc);
-
-		cmp_field($result, $expect, "type", $desc);
-
-		cmp_field($result, $expect, "reason", $desc);
-
-		cmp_field($result, $expect, "name", $desc);
-	}
-
-	if (defined $expect->{diag})
-	{
-		if (not $Test->ok($result->{diag} eq $expect->{diag},
-			"subtest '$sub_name' of '$name' compare diag")
-		)
-		{
-			my $glen = length($result->{diag});
-			my $elen = length($expect->{diag});
-
-			$Test->diag(<<EOM);
-Got diag ($glen bytes):
-$result->{diag}
-Expected diag ($elen bytes):
-$expect->{diag}
-EOM
-
-		}
-	}
-}
-
-sub cmp_results
-{
-	my ($results, $expects, $name) = @_;
-
-	$Test->is_num(scalar @$results, scalar @$expects, "Test '$name' result count");
-
-	for (my $i = 0; $i < @$expects; $i++)
-	{
-		my $expect = $expects->[$i];
-		my $result = $results->[$i];
-
-		local $Test::Builder::Level = $Test::Builder::Level + 1;
-		cmp_result($result, $expect, $name);
-	}
-}
-
-######## nicked from Test::More
-sub plan {
-    my(@plan) = @_;
-
-    my $caller = caller;
-
-    $Test->exported_to($caller);
-
-    my @imports = ();
-    foreach my $idx (0..$#plan) {
-        if( $plan[$idx] eq 'import' ) {
-            my($tag, $imports) = splice @plan, $idx, 2;
-            @imports = @$imports;
-            last;
+    $self[1] = $test_log if $test_log;
+    if($self[1]) {
+        $self[0] = $Test::TESTOUT;
+        unless ( open($Test::TESTOUT, ">>$self[1]") ) {
+            warn( "Cannot open $self[1]\n" );
+            $self->skip_rest();
+            return undef
         }
+        binmode $Test::TESTOUT; # make the test friendly for more platforms
     }
 
-    $Test->plan(@plan);
-
-    __PACKAGE__->_export_to_level(1, __PACKAGE__, @imports);
+    $self
 }
 
-sub import {
-    my($class) = shift;
-    goto &plan;
-}
-
-sub _export_to_level
+#####
+# Done with the test
+#
+sub finish # end a test
 {
-      my $pkg = shift;
-      my $level = shift;
-      (undef) = shift;                  # redundant arg
-      my $callpkg = caller($level);
-      $pkg->export($callpkg, @_);
+   my ($self)=@_;
+   if( $self->[1] ) {
+       $self->[1]= '';
+       unless (close( $Test::TESTOUT )) {
+           warn( "Cannot close $self->[1]\n" );
+       }
+       $Test::TESTOUT = $self->[0];
+   }
+   1
 }
 
 
-############
+#######
+# Sets flag to skip rest of tests
+#
+sub skip_rest( $value )
+{
+   my ($self,$value) =  @_;
+   my $result = $self->[2];
+   $value = 1 unless $value;
+   $self->[2] = $value;
+   $result;   
+}
 
-1;
+
+######
+# Cover function for &Test::plan
+#
+sub work_breakdown  # open a file
+{
+   my $self=shift @_;
+   plan( @_ );
+   1
+}
+
+
+#######
+#
+# Cover function for &TEST::ok that uses Dumper 
+# so can test arbitary inputs
+#
+sub test
+{
+   my ($self, $actual_p, $expected_p, $name) = @_;
+   print $Test::TESTOUT "# $name\n" if $name;
+   if($self->[2]) {  # skip rest of tests switch
+       print $Test::TESTOUT "# Test invalid because of previous failure.\n";
+       skip( 1, 0, '');
+       return 1; 
+   }
+   my $actual = Dumper(@$actual_p);
+   my $expected = Dumper(@$expected_p);
+   ok($actual, $expected, '');
+}
+
+
+#######
+#
+# Cover function for &TEST::skip so that uses Dumper 
+# so can test arbitary inputs
+#
+sub verify  # store expected array for later use
+{
+   my ($self, $mod, $actual_p, $expected_p, $name) = @_;
+
+   print $Test::TESTOUT "# $name\n" if $name;
+
+   if($self->[2]) {  # skip rest of tests switch
+       print $Test::TESTOUT "# Test invalid because of previous failure.\n";
+       skip( 1, 0, '');
+       return 1; 
+   }
+  
+   my $actual = Dumper(@$actual_p);
+   my $expected = Dumper(@$expected_p);
+   my $test_ok = skip($mod, $actual, $expected, '');
+   $test_ok = 1 if $mod;  # make sure do not stop 
+   $test_ok
+
+}
+
+
+######
+# Actual data
+#
+sub demo
+{
+   my ($self, $quoted_expression, @expression_results) = @_;
+
+   #######
+   # A demo trys to simulate someone typing expresssions
+   # at a console.
+   #
+
+   #########
+   # Print quoted expression so that see the non-executed
+   # expression. The extra space is so when pasted into
+   # a POD, the POD will process the line as code.
+   #
+   $quoted_expression =~ s/(\n+)/$1 => /g;
+   print $Test::TESTOUT ' => ' . $quoted_expression . "\n";   
+
+   ########
+   # @data is the result of the script executing the 
+   # quoted expression.
+   #
+   # The demo output most likely will end up in a pod. 
+   # The the process of running the generated script
+   # will execute the setup. Thus the input is the
+   # actual results. Putting a space in front of it
+   # tells the POD that it is code.
+   #
+   return unless @expression_results;
+  
+   $Data::Dumper::Terse = 1;
+   my $data = Dumper(@expression_results);
+   $data =~ s/(\n+)/$1 /g;
+   $data =~ s/\\\\/\\/g;
+   $data =~ s/\\'/'/g;
+
+   print $Test::TESTOUT ' ' . $data . "\n" ;
+
+}
+
+
+
+#######
+# Any other function use TestUtil
+#
+sub AUTOLOAD
+{
+    our $AUTOLOAD;
+
+    my $self_p = shift @_;
+
+    my $func_p = $AUTOLOAD; 
+    $func_p =~ s/.*:://g; # trim the autoload
+
+    return Test::TestUtil->$func_p( @_ );
+
+}
+
+1
 
 __END__
 
-=head1 NAME
 
-Test::Tester - Help testing test modules built with Test::Builder
+=head1 NAME
+  
+Test::Tester - extends the capabilites of the I<Test> module
 
 =head1 SYNOPSIS
 
-  use Test::Tester qw( tests => 5);
+  use Test::Tester
 
-  use Test::MyStyle;
+  $T = new Test::Tester;
+  $success = $T->work_breakdown(@args);
+  $test_ok = $T->test(\@actual_results, \@expected_results, $test_name);
+  $test_ok = $T->verify(test, \@actual_results,  \@expected_results, $test_name);
+  $success = $T->skip_rest();
+  $success = $T->finish( );
 
-  Test::MyStyle::set_builder(Test::Tester->capture);
-
-  check_test(
-    sub {
-      is_mystyle_eq("this", "that", "not eq");
-    },
-    {
-      name => "not eq",
-      ok => 0,
-      diag => "Expected: 'this'\nGot: 'that'",
-    }
-  );
+  $success = $T->demo( $quoted_expression, @expression_results );
 
 =head1 DESCRIPTION
 
-If you have written a test module based on Test::Builder then Test::Tester
-makes it easier for you to test your tests. It provides an object from
-Test::Tester::Capture which inherits from Test::Builder but overrides the
-the methods your test module will call so that it can prevent test output
-and also capture test results and diagnostics for examination.
+The Test::Tester module extends the capabilities of
+the Test module as follows:
 
-=head1 HOW TO USE
+=over 4
 
-Make your module use the Test::Tester::Capture object instead of the
-Test::Builder one. How to do this depends on your module but assuming that
-your module holds the Test::Builder object in $Test and that all your test
-routines access it through $Test then providing a function something like this
+=item *
 
-  sub set_builder
-  {
-    $Test = shift;
-  }
+Compare almost any data structure by passing variables
+through I<Data::Dumper> before making the comparision
 
-should allow your test scripts to do
+=item *
 
-  Test::YourModule::set_builder(Test::Tester->capture);
+Method to skip the rest of the tests upon a critical failure
 
-and after that any tests inside your module will captured.
+=item *
 
-=begin _scrapped_for_now
+Method to generate demos that appear as an interactive
+session using the methods under test
 
-=head1 HOW TO USE THE HORRIBLE NEW WAY
+=back
 
-There is now another way to use this, maybe it's a better way, I don't know.
-Just do a Test::Tester::fh() and it then it'll be set up to run in
-filehandle capture mode. This means that when you run a test using one of
-the functions provided below, the output form Test::Builder will be
-captured. The results that are returned are exactly what you get from
-Test::Builder's details method but each result also has it's diagnostic
-output added to the hash under the 'diag' key. For failed tests, the failure
-notice is removed.
+The Test::Tester module is an integral part of the US DOD SDT2167A bundle
+of modules.
+The dependency of the program modules in the US DOD STD2167A bundle is as follows:
 
-This is another quite dodgy way of doing things as it fiddles with
-Test::Builder's current_test counter and does nasty things to it's
-@Test_Result array.
+ Test::TestUtil
+     Test::Tester
+        DataPort::FormDB
+            Test::STDmaker ExtUtils::SVDmaker
 
-=end
+=head2 new method
 
-=head1 TEST RESULTS
+ $T = new Test::Tester;
 
-Some of the functions exported return catured test results. The results of
-each test is captured in a hash and is exactly the same as the results
-returned by Test::Builder's details method with an extra field B<diag>
-containing any diagnostics output for that test.
+The I<new> method creates a new I<Test::Tester> object.
 
-=head1 EXPORTED FUNCTIONS
+=head2 work_breakdown method
 
-=head3 cmp_result(\%result, \%expect, $name)
+ $success = $T->work_breakdown(@args);
 
-\%result is a ref to a test result hash.
+The I<work_breakdown> method is a cover method for &Test::plan.
+The I<@args> are passed unchanged directory to &Test::plan.
+All arguments are options. Valid options are as follows:
 
-\%expect is a ref to a hash of expected values for the test result.
+=over 4
 
-cmp_result compares the result with the expected values. If any differences
-are found it outputs diagnostics. You may leave out any field from the
-expetced result and cmp_result will not do the comparison of that field.
+=item tests
 
-=head3 cmp_results(\@results, \@expects, $name)
+The number of tests. For example
 
-\@results is a ref to an array of test results.
+ tests => 14,
 
-\@expects is a ref to an array of hash refs.
+=item todo
 
-cmp_results checks that the results match the expected results and if any
-differences are found it outputs diagnostics. It first checks that the
-number of elements in \@results and \@expects is the same. Then it goes
-through each result checking it against the expected result as in
-cmp_result() above.
+An array of test that will fail. For example
 
-=head3 ($prem, @results) = run_tests(\&test_sub, $name)
+ todo => [3,4]
 
-\&test_sub is a reference to a subroutine.
+=item onfail
 
-$name is a string.
+A subroutine that the I<Test> module will
+execute on a failure. For example,
 
-run_tests runs the subroutine in $test_sub and captures the results of any
-tests inside it. There may be more than 1 test inside.
+ onfail => sub { warn "CALL 911!" } 
 
-$prem is a string containg any diagnostic output from before the first test.
+=back
 
-@results is an array of test results.
+=head2 test method
 
-=head3 ($prem, @results) = check_tests(\&test_sub, \@expects, $name)
+  $test_ok = $T->test(\@actual_results, \@expected_results, $test_name);
 
-\&test_sub is a reference to a subroutine.
+The I<test> method is a cover function for the &Test::ok subroutine
+that extends the &Test::ok routine as follows:
 
-\@expect is a ref to an array of hash refs which are expected test results.
+=over 4
 
-check_tests combines run_tests and cmp_tests into a single call. It also
-checks if the tests died at any stage.
+=item *
 
-It returns the same values as run_tests, so you can do further tests.
+Prints out the I<$test_name> to provide an English identification
+of the test.
 
-=head3 ($prem, @results) = check_test(\&test_sub, \%expect, $name)
+=item *
 
-\&test_sub is a reference to a subroutine. 
+The I<test> method passes the arrays
+I<@actual_results> and I<@expectet_results> through &Data::Dumper::Dumper.
+The I<test> method then uses &Test::ok to compare the text results
+from &Data::Dumper::Dumper.
 
-\%expect is a ref to an hash of expected values for the test result.
+=item *
 
-check_test is a wrapper around check_tests. It combines run_tests and
-cmp_tests into a single call, checking if the test died. It assumes that
-only a single test is run inside \&test_sub and test to make this is true.
+Response to a flag set by the L<skip_rest method|Test::Tester/skip_rest method>
+and skips the test completely.
 
-It returns the same values as run_tests, so you can do further tests.
+=back
+
+=head2 verify method
+
+  $test_ok = $T->verify(test, \@actual_results,  \@expected_results, $test_name);
+
+The I<test> method is a cover function for the &Test::skip subroutine
+that extends the &Test::skip the same as the I<test> method extends
+the I<&Test::ok> subroutine.
+See L<test method|Test::Tester/test method>
+
+=head2 skip_rest method
+
+  $success = $T->skip_rest();
+
+The I<skip_rest> method sets a flag that causes the
+I<test> and the I<verify> methods to skip testing.
+
+=head2 finish method
+
+  $success = $T->finish( );
+
+The I<finish> method shuts down the I<$T Test::Tester> object.
+
+head2 Test::TestUtil methods
+
+The I<Test::Tester> program module inherits all the methods
+from the L<Test::TestUtil|Test::TestUtil> module.
+
+=head1 NOTES
+
+=head2 AUTHOR
+
+The holder of the copyright and maintainer is
+
+E<lt>support@SoftwareDiamonds.comE<gt>
+
+=head2 COPYRIGHT NOTICE
+
+Copyrighted (c) 2002 Software Diamonds
+
+All Rights Reserved
+
+=head2 BINDING REQUIREMENTS NOTICE
+
+Binding requirements are indexed with the
+pharse 'shall[dd]' where dd is an unique number
+for each header section.
+This conforms to standard federal
+government practices, 490A (L<STD490A/3.2.3.6>).
+In accordance with the License, Software Diamonds
+is not liable for any requirement, binding or otherwise.
+
+=head2 LICENSE
+
+Software Diamonds permits the redistribution
+and use in source and binary forms, with or
+without modification, provided that the 
+following conditions are met: 
+
+=over 4
+
+=item 1
+
+Redistributions of source code must retain
+the above copyright notice, this list of
+conditions and the following disclaimer. 
+
+=item 2
+
+Redistributions in binary form must 
+reproduce the above copyright notice,
+this list of conditions and the following 
+disclaimer in the documentation and/or
+other materials provided with the
+distribution.
+
+=back
+
+SOFTWARE DIAMONDS, http::www.softwarediamonds.com,
+PROVIDES THIS SOFTWARE 
+'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+SHALL SOFTWARE DIAMONDS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL,EXEMPLARY, OR 
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE,DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE POSSIBILITY OF SUCH DAMAGE. 
 
 =head1 SEE ALSO
 
-Test::Builder the source of testing goodness. Test::Builder::Tester for an
-alternative approach to the prblem takled by Test::Tester.
+L<Test> L<Test::TestUtil>
 
-=head1 AUTHOR
-
-Plan handling lifted from Test::More. written by Michael G Schwern
-<schwern@pobox.com>.
-
-Test::Tester::Capture is a cut down and hacked up version of Test::Builder,
-written by chromatic <chromatic@wgz.org> and Michael G Schwern
-<schwern@pobox.com>.
-
-The rest copywrite 2003 Fergal Daly <fergal@esatclear.ie>.
-
-=head1 LICENSE
-
-Under the same license as Perl itself
-
-See http://www.perl.com/perl/misc/Artistic.html
+=for html
+<p><br>
+<!-- BLK ID="NOTICE" -->
+<!-- /BLK -->
+<p><br>
+<!-- BLK ID="OPT-IN" -->
+<!-- /BLK -->
+<p><br>
+<!-- BLK ID="EMAIL" -->
+<!-- /BLK -->
+<p><br>
+<!-- BLK ID="COPYRIGHT" -->
+<!-- /BLK -->
+<p><br>
+<!-- BLK ID="LOG_CGI" -->
+<!-- /BLK -->
+<p><br>
 
 =cut
 
+### end of file ###
