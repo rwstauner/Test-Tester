@@ -8,7 +8,9 @@ require Exporter;
 
 sub new
 {
-	return __PACKAGE__;
+	my $pkg = shift;
+	my $self = bless {}, $pkg;
+	return $self;
 }
 
 sub run_tests
@@ -19,12 +21,25 @@ sub run_tests
 
 	capture()->reset;
 
+	$self->{StartLevel} = $Test::Builder::Level;
 	&$test();
 }
 
 sub get_results
 {
-	return capture()->details;
+	my $self = shift;
+	my @results = capture()->details;
+
+	my $start = $self->{StartLevel};
+	foreach my $res (@results)
+	{
+		next if defined $res->{depth};
+		my $depth = $res->{_depth} - $res->{_level} - $start - 3;
+#		print "my $depth = $res->{_depth} - $res->{_level} - $start - 1\n";
+		$res->{depth} = $depth;
+	}
+
+	return @results;
 }
 
 sub get_premature

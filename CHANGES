@@ -1,3 +1,15 @@
+0.08
+
+check_test was getting the Level wrong
+
+Made it all very nice so that don't have to worry about providing capture
+objects or any of that messiness. Thigs are automatically captured once
+you're inside one of Test::Tester's testing routines.
+
+Added depth to allow testing $Test::Builder::Level.
+
+Updated the POD a bit.
+
 0.07
 
 Spellchecked the POD

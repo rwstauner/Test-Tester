@@ -78,7 +78,8 @@ sub ok {
 	} 
 
 	$result->{diag} = "";
-	return $test ? 1 : 0;
+	$result->{_level} = $Test::Builder::Level;
+	$result->{_depth} = Test::Tester::find_run_tests();
 
 	return $test ? 1 : 0;
 }
@@ -99,6 +100,8 @@ sub skip {
 		type	  => 'skip',
 		reason	=> $why,
 		diag    => "",
+		_level   => $Test::Builder::Level,
+		_depth => Test::Tester::find_run_tests(),
 	);
 	$Test_Results[$Curr_Test-1] = \%result;
 
@@ -121,6 +124,8 @@ sub todo_skip {
 		type	  => 'todo_skip',
 		reason	=> $why,
 		diag    => "",
+		_level   => $Test::Builder::Level,
+		_depth => Test::Tester::find_run_tests(),
 	);
 
 	$Test_Results[$Curr_Test-1] = \%result;

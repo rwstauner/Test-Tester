@@ -7,7 +7,7 @@ use Test::Tester;
 use Data::Dumper qw(Dumper);
 
 my $test = Test::Builder->new;
-$test->plan(tests => 78);
+$test->plan(tests => 88);
 
 my $cap;
 
@@ -24,6 +24,7 @@ my @tests = (
 			reason => "",
 			type => "",
 			diag => "",
+			depth => 0,
 		},
 	],
 	[
@@ -38,6 +39,7 @@ my @tests = (
 			reason => "",
 			type => "",
 			diag => "pass diag1\npass diag2\n",
+			depth => 0,
 		},
 	],
 	[
@@ -51,6 +53,7 @@ my @tests = (
 			reason => "",
 			type => "",
 			diag => "fail diag\n",
+			depth => 0,
 		},
 	],
 	[
@@ -63,6 +66,7 @@ my @tests = (
 			reason => "just because",
 			type => "skip",
 			diag => "",
+			depth => 0,
 		},
 	],
 	[
@@ -75,6 +79,7 @@ my @tests = (
 			reason => "why not",
 			type => "todo_skip",
 			diag => "",
+			depth => 0,
 		},
 	],
 );
