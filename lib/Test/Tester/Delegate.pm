@@ -15,12 +15,6 @@ sub new
 	return $self;
 }
 
-sub setObject
-{
-	my $self = shift;
-	$self->{Object} = shift;
-}
-
 sub AUTOLOAD
 {
 	my ($sub) = $AUTOLOAD =~ /.*::(.*?)$/;

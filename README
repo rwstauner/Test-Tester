@@ -158,6 +158,9 @@ TEST RESULTS
       might seem a little complex but unless you are calling your test functions
       inside subroutines or evals then depth will always be 1.
 
+      Note: depth will not be correctly calculated for tests that run from a
+      signal handler or an END block or anywhere else that hides the call stack.
+
     Some of the Test::Testers functions return arrays of these hashes, just like
     Test::Builder->details. That is, the hash for the first test will be array
     element 1 (not 0). Element 0 will not be a hash it will be a string which

@@ -1,3 +1,12 @@
+0.09
+
+The depth calculation would die if it couldn't find the correct things in
+the call stack. This seemed like a good idea but it breaks tests which are
+triggered in signal handlers. So now the calculation will fail silently.
+
+Using local rather than set/unset for the delegator so that if something
+dies, we will drop back to the correct test object.
+
 0.08
 
 check_test was getting the Level wrong

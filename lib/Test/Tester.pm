@@ -11,14 +11,14 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.08";
+$VERSION = "0.09";
 @EXPORT = qw( run_tests check_tests check_test cmp_results );
 @ISA = qw( Exporter );
 
 my $Test = Test::Builder->new;
 my $Capture = Test::Tester::Capture->new;
 my $Delegator = Test::Tester::Delegate->new;
-$Delegator->setObject($Test);
+$Delegator->{Object} = $Test;
 
 my $runner = Test::Tester::CaptureRunner->new;
 
@@ -51,15 +51,16 @@ sub find_run_tests
 		$d++;
 	}
 
-	die "Didn't find 'run_tests' in caller stack" unless $found;
+#	die "Didn't find 'run_tests' in caller stack" unless $found;
 	return $d;
 }
 
 sub run_tests
 {
-	$Delegator->setObject($Capture);
+	local($Delegator->{Object}) = $Capture;
+
 	$runner->run_tests(@_);
-	$Delegator->setObject($Test);
+
 	return ($runner->get_premature, $runner->get_results);
 }
 
@@ -408,6 +409,9 @@ the depth should be 1 and in
 depth should be 2, that is 1 for the sub {} and one for deeper(). This might
 seem a little complex but unless you are calling your test functions inside
 subroutines or evals then depth will always be 1.
+
+B<Note>: depth will not be correctly calculated for tests that run from a
+signal handler or an END block or anywhere else that hides the call stack.
 
 =back
 
