@@ -1,0 +1,6 @@
+lib/Test/Tester.pm
+lib/Test/Tester/Capture.pm
+Makefile.PL
+MANIFEST
+README
+t/run_test.t

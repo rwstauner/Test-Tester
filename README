@@ -1,0 +1,7 @@
+This module makes it easier to test a test module.
+
+I'm quite unsure if I've gone about this completely the wrong way, so how
+you initialise the test capture stuff will most likely change.
+
+The actual comparions functions shouldn't change much at all.
+
