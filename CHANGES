@@ -1,3 +1,11 @@
+0.102
+
+Fixed a problem due to subroutine argument aliasing which meant the
+delegate object could be replaced by the real Test::Builder object.
+
+Test::Tester must be loaded before Test::Builder. Check for this and warn if
+it's not true.
+
 0.101
 
 Added colourisation support.

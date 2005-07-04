@@ -1,7 +1,5 @@
 use strict;
 
-use Test::Builder;
-
 use Test::Tester;
 
 my $Test = Test::Builder->new;

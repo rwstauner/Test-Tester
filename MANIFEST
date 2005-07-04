@@ -1,5 +1,4 @@
 ARTISTIC
-bak/Tester.pm
 CHANGES
 lib/Test/Tester.pm
 lib/Test/Tester/Capture.pm

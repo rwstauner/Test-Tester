@@ -1,7 +1,5 @@
 use strict;
 
-use Test::Builder;
-
 use Test::Tester;
 
 use Data::Dumper qw(Dumper);

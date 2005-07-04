@@ -2,6 +2,14 @@ use strict;
 
 package Test::Tester;
 
+BEGIN
+{
+	if (*Test::Builder::new{CODE})
+	{
+		warn "You should load Test::Tester before Test::Builder (or anything that loads Test::Builder)" 
+	}
+}
+
 use Test::Builder;
 use Test::Tester::CaptureRunner;
 use Test::Tester::Delegate;
@@ -10,7 +18,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.101";
+$VERSION = "0.102";
 @EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
@@ -25,7 +33,7 @@ my $want_space = $ENV{TESTTESTERSPACE};
 
 sub show_space
 {
-  $want_space = 1;
+	$want_space = 1;
 }
 
 my $colour = '';
@@ -164,18 +172,18 @@ sub cmp_result
 			my $elen = length($exp);
 			for ($got, $exp)
 			{
-	      my @lines = split("\n", $_);
-   		  $_ = join("\n", map {
-  				if ($want_space)
-	  			{
-		  		  $_ = $colour.escape($_).$reset;
-	      	}
-	      	else
-      		{
-     		    "'$colour$_$reset'"
-          }
-        } @lines);
-      }
+				my @lines = split("\n", $_);
+	 			$_ = join("\n", map {
+					if ($want_space)
+					{
+						$_ = $colour.escape($_).$reset;
+					}
+					else
+					{
+						"'$colour$_$reset'"
+					}
+				} @lines);
+			}
 
 			$Test->diag(<<EOM);
 Got diag ($glen bytes):
@@ -190,23 +198,23 @@ EOM
 
 sub escape
 {
-  my $str = shift;
-  my $res = '';
-  for my $char (split("", $str))
-  {
-	my $c = ord($char);
-	if(($c>32 and $c<125) or $c == 10)
+	my $str = shift;
+	my $res = '';
+	for my $char (split("", $str))
 	{
-	  $res .= $char;
+		my $c = ord($char);
+		if(($c>32 and $c<125) or $c == 10)
+		{
+			$res .= $char;
+		}
+		else
+		{
+			$res .= sprintf('\x{%x}', $c)
+		}
 	}
-	else
-	{
-	  $res .= sprintf('\x{%x}', $c)
-	}
-  }
-  return $res;
-
+	return $res;
 }
+
 sub cmp_results
 {
 	my ($results, $expects, $name) = @_;
@@ -256,11 +264,11 @@ sub import {
 
 sub _export_to_level
 {
-	  my $pkg = shift;
-	  my $level = shift;
-	  (undef) = shift;				  # redundant arg
-	  my $callpkg = caller($level);
-      $pkg->export($callpkg, @_);
+        my $pkg = shift;
+	my $level = shift;
+	(undef) = shift;	# redundant arg
+	my $callpkg = caller($level);
+	$pkg->export($callpkg, @_);
 }
 
 

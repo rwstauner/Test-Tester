@@ -24,7 +24,8 @@ sub AUTOLOAD
 	my $obj = $_[0]->{Object};
 
 	my $ref = $obj->can($sub);
-	$_[0] = $obj;
+	shift(@_);
+	unshift(@_, $obj);
 	goto &$ref;
 }
 

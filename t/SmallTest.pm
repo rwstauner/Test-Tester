@@ -28,4 +28,8 @@ sub is_num
 	$Test->is_num(@_);
 }
 
+sub getTest
+{
+	return $Test;
+}
 1;
