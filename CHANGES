@@ -1,3 +1,9 @@
+0.103
+
+Default to checking depth (check against 1 if none specified). This means
+that by default we are checking that the line number/file in failure
+messages will be correct.
+
 0.102
 
 Fixed a problem due to subroutine argument aliasing which meant the

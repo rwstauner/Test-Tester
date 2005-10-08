@@ -2,7 +2,7 @@ NAME
     Test::Tester - Ease testing test modules built with Test::Builder
 
 SYNOPSIS
-      use Test::Tester tests => 5;
+      use Test::Tester tests => 6;
 
       use Test::MyStyle;
 
@@ -21,7 +21,7 @@ SYNOPSIS
 
       use Test::Tester;
 
-      use Test::More tests => 2;
+      use Test::More tests => 3;
       use Test::MyStyle;
 
       my @results = run_tests(
@@ -163,6 +163,10 @@ TEST RESULTS
       depth should be 2, that is 1 for the sub {} and one for deeper(). This
       might seem a little complex but unless you are calling your test functions
       inside subroutines or evals then depth will always be 1.
+
+      Note: if you do not specify a value for depth in check_test() then it
+      automatically compares it against 1, if you really want to skip the depth
+      test then pass in undef.
 
       Note: depth will not be correctly calculated for tests that run from a
       signal handler or an END block or anywhere else that hides the call stack.

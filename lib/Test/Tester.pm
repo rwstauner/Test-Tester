@@ -18,7 +18,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.102";
+$VERSION = "0.103";
 @EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
@@ -113,7 +113,7 @@ sub check_tests
 	my ($prem, @results) = eval { run_tests($test, $name) };
 
 	$Test->ok(! $@, "Test '$name' completed") || $Test->diag($@);
-	$Test->ok(! length($prem), "Test '$name' no premature diagostication") ||
+	$Test->ok(! length($prem), "Test '$name' no premature diagnostication") ||
 		$Test->diag("Before any testing anything, your tests said\n$prem");
 
 	local $Test::Builder::Level = $Test::Builder::Level + 1;
@@ -153,8 +153,20 @@ sub cmp_result
 		cmp_field($result, $expect, "reason", $desc);
 
 		cmp_field($result, $expect, "name", $desc);
+	}
 
-		cmp_field($result, $expect, "depth", $desc);
+	# if we got no depth then default to 1
+	my $depth = 1;
+	if (exists $expect->{depth})
+	{
+		$depth = $expect->{depth};
+	}
+
+	# if depth was explicitly undef then don't test it
+	if (defined $depth)
+	{
+		$Test->is_eq($result->{depth}, $depth, "checking depth") ||
+			$Test->diag('You need to change $Test::Builder::Level');
 	}
 
 	if (defined(my $exp = $expect->{diag}))
@@ -284,7 +296,7 @@ Test::Tester - Ease testing test modules built with Test::Builder
 
 =head1 SYNOPSIS
 
-  use Test::Tester tests => 5;
+  use Test::Tester tests => 6;
 
   use Test::MyStyle;
 
@@ -303,7 +315,7 @@ or
 
   use Test::Tester;
 
-  use Test::More tests => 2;
+  use Test::More tests => 3;
   use Test::MyStyle;
 
   my @results = run_tests(
@@ -462,6 +474,10 @@ the depth should be 1 and in
 depth should be 2, that is 1 for the sub {} and one for deeper(). This might
 seem a little complex but unless you are calling your test functions inside
 subroutines or evals then depth will always be 1.
+
+B<Note>: if you do not specify a value for depth in check_test() then it
+automatically compares it against 1, if you really want to skip the depth
+test then pass in undef.
 
 B<Note>: depth will not be correctly calculated for tests that run from a
 signal handler or an END block or anywhere else that hides the call stack.
