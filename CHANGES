@@ -1,3 +1,9 @@
+0.104
+
+Removed a bogus entry for Exporter in @ISA in Test::Tester::Capture
+and add a "use Test::Builder". This can cause problems that I can't
+reproduce. Thanks to Andres Koenig.
+
 0.103
 
 Default to checking depth (check against 1 if none specified). This means
