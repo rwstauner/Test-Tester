@@ -11,8 +11,7 @@ use MyTest;
 
 {
 	my ($prem, @results) = run_tests(
-		sub { MyTest::ok(1, "run pass")},
-		"run pass"
+		sub { MyTest::ok(1, "run pass")}
 	);
 
 	is_eq($results[0]->{name}, "run pass");
@@ -21,8 +20,7 @@ use MyTest;
 
 {
 	my ($prem, @results) = run_tests(
-		sub { MyTest::ok(0, "run fail")},
-		"run fail"
+		sub { MyTest::ok(0, "run fail")}
 	);
 
 	is_eq($results[0]->{name}, "run fail");

@@ -12,8 +12,7 @@ my $cap;
 {
 	$cap = Test::Tester->capture;
 	my ($prem, @results) = run_tests(
-		sub {$cap->ok(1, "run pass")},
-		"run pass"
+		sub {$cap->ok(1, "run pass")}
 	);
 
 	local $Test::Builder::Level = 0;
@@ -34,8 +33,7 @@ my $cap;
 
 {
 	my ($prem, @results) = run_tests(
-		sub {$cap->ok(0, "run fail")},
-		"run fail"
+		sub {$cap->ok(0, "run fail")}
 	);
 
 	local $Test::Builder::Level = 0;
@@ -56,8 +54,7 @@ my $cap;
 
 {
 	my ($prem, @results) = run_tests(
-		sub {$cap->skip("just because")},
-		"skip"
+		sub {$cap->skip("just because")}
 	);
 
 	local $Test::Builder::Level = 0;
@@ -78,8 +75,7 @@ my $cap;
 
 {
 	my ($prem, @results) = run_tests(
-		sub {$cap->todo_skip("just because")},
-		"todo_skip"
+		sub {$cap->todo_skip("just because")}
 	);
 
 	local $Test::Builder::Level = 0;
@@ -100,8 +96,7 @@ my $cap;
 
 {
 	my ($prem, @results) = run_tests(
-		sub {$cap->diag("run diag")},
-		"run diag"
+		sub {$cap->diag("run diag")}
 	);
 
 	local $Test::Builder::Level = 0;
@@ -118,8 +113,7 @@ my $cap;
 			$cap->diag("multi pass diag2");
 			$cap->ok(0, "multi fail");
 			$cap->diag("multi fail diag");
-		},
-		"run multi"
+		}
 	);
 
 	local $Test::Builder::Level = 0;

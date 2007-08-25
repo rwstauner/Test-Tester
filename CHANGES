@@ -1,3 +1,13 @@
+0.105
+
+Fixed documentation for run_tests - looks like I copied code for
+check_test and didn't alter it correctly. Ricardo Signes pointed out
+the errors.
+
+Removed the code and docs related to the $name parameter of run_tests,
+it had no effect and a name makes no sense (again a hang over from
+factoring this out of check_tests I guess).
+
 0.104
 
 Removed a bogus entry for Exporter in @ISA in Test::Tester::Capture

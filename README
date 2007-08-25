@@ -27,9 +27,6 @@ SYNOPSIS
       my @results = run_tests(
         sub {
           is_database_alive("dbname");
-        },
-        {
-          ok => 1, # expect the test to pass
         }
       );
 
@@ -77,9 +74,6 @@ HOW TO USE (THE EASY WAY)
       my @results = run_tests(
         sub {
           is_database_alive("dbname");
-        },
-        {
-          ok => 1, # expect the test to pass
         }
       );
 
@@ -157,7 +151,7 @@ TEST RESULTS
       the depth should be 1 and in
 
         sub deeper { my_test_function("a", "b") }
-  
+
         run_tests(sub { deeper() });
 
       depth should be 2, that is 1 for the sub {} and one for deeper(). This
@@ -221,10 +215,8 @@ COLOUR
     variable also works (if both are set then the British spelling wins out).
 
 EXPORTED FUNCTIONS
-   ($prem, @results) = run_tests(\&test_sub, $name)
+   ($prem, @results) = run_tests(\&test_sub)
     \&test_sub is a reference to a subroutine.
-
-    $name is a string.
 
     run_tests runs the subroutine in $test_sub and captures the results of any
     tests inside it. You can run more than 1 test inside this subroutine if you

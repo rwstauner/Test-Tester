@@ -18,7 +18,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.104";
+$VERSION = "0.105";
 @EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
@@ -321,9 +321,6 @@ or
   my @results = run_tests(
     sub {
       is_database_alive("dbname");
-    },
-    {
-      ok => 1, # expect the test to pass
     }
   );
 
@@ -373,9 +370,6 @@ you can get direct access to the test results:
   my @results = run_tests(
     sub {
       is_database_alive("dbname");
-    },
-    {
-      ok => 1, # expect the test to pass
     }
   );
 
@@ -468,7 +462,7 @@ jumping into the function you are testing so for example in
 the depth should be 1 and in
 
   sub deeper { my_test_function("a", "b") }
-  
+
   run_tests(sub { deeper() });
 
 depth should be 2, that is 1 for the sub {} and one for deeper(). This might
@@ -537,11 +531,9 @@ variable also works (if both are set then the British spelling wins out).
 
 =head1 EXPORTED FUNCTIONS
 
-=head3 ($prem, @results) = run_tests(\&test_sub, $name)
+=head3 ($prem, @results) = run_tests(\&test_sub)
 
 \&test_sub is a reference to a subroutine.
-
-$name is a string.
 
 run_tests runs the subroutine in $test_sub and captures the results of any
 tests inside it. You can run more than 1 test inside this subroutine if you
@@ -587,7 +579,7 @@ results if you need to.
 
 =head3 ($prem, @results) = check_test(\&test_sub, \%expect, $name)
 
-\&test_sub is a reference to a subroutine. 
+\&test_sub is a reference to a subroutine.
 
 \%expect is a ref to an hash of expected values for the test result.
 
@@ -598,7 +590,7 @@ only a single test is run inside \&test_sub and test to make this is true.
 It returns the same values as run_tests, so you can further examine the test
 results if you need to.
 
-=head3 show_space() 
+=head3 show_space()
 
 Turn on the escaping of characters as described in the SPACES AND TABS
 section.

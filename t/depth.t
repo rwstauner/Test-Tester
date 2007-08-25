@@ -21,8 +21,7 @@ sub deeper
 		sub {
 			MyTest::ok(1);
 			deeper();
-		},
-		"run pass"
+		}
 	);
 
 	local $Test::Builder::Level = 0;
