@@ -18,7 +18,7 @@ require Exporter;
 
 use vars qw( @ISA @EXPORT $VERSION );
 
-$VERSION = "0.105";
+$VERSION = "0.106";
 @EXPORT = qw( run_tests check_tests check_test cmp_results show_space );
 @ISA = qw( Exporter );
 
@@ -318,7 +318,7 @@ or
   use Test::More tests => 3;
   use Test::MyStyle;
 
-  my @results = run_tests(
+  my ($premature, @results) = run_tests(
     sub {
       is_database_alive("dbname");
     }
@@ -326,7 +326,7 @@ or
 
   # now use Test::More::like to check the diagnostic output
 
-  like($result[1]->{diag}, "/^Database ping took \\d+ seconds$"/, "diag");
+  like($results[0]->{diag}, "/^Database ping took \\d+ seconds$"/, "diag");
 
 =head1 DESCRIPTION
 
@@ -340,13 +340,14 @@ special in your test modules. All you need to do is
 
   use Test::Tester;
 
-in your test script before any other Test::Builder based modules and away
+in your test script B<before> any other Test::Builder based modules and away
 you go.
 
-Other modules based on Test::Builder can be used to help with the testing.
-In fact you can even use functions from your test module to test other
-functions from the same module - although that may not be a very wise thing
-to do!
+Other modules based on Test::Builder can be used to help with the
+testing.  In fact you can even use functions from your module to test
+other functions from the same module (while this is possible it is
+probably not a good idea, if your module has bugs, then
+using it to test itself may give the wrong answers).
 
 The easiest way to test is to do something like
 
@@ -363,17 +364,17 @@ this will execute the is_mystyle_eq test, capturing it's results and
 checking that they are what was expected.
 
 You may need to examine the test results in a more flexible way, for
-example, if the diagnostic output may be quite complex or it may involve
+example, the diagnostic output may be quite long or complex or it may involve
 something that you cannot predict in advance like a timestamp. In this case
 you can get direct access to the test results:
 
-  my @results = run_tests(
+  my ($premature, @results) = run_tests(
     sub {
       is_database_alive("dbname");
     }
   );
 
-  like($result[1]->{diag}, "/^Database ping took \\d+ seconds$"/, "diag");
+  like($result[0]->{diag}, "/^Database ping took \\d+ seconds$"/, "diag");
 
 
 We cannot predict how long the database ping will take so we use
@@ -408,7 +409,7 @@ fields.
 
 These fields are documented in L<Test::Builder> in the details() function
 
-=over 2 
+=over 2
 
 =item ok
 
@@ -443,11 +444,12 @@ These fields are exclusive to Test::Tester.
 Any diagnostics that were output for the test. This only includes
 diagnostics output B<after> the test result is declared.
 
-Note that Test::Builder ensures that any diagnostics end in a \n and so it
-was essential that you have the final \n in your expected diagnostics. From
-version 0.10 onwards, Test::Tester will add the \n if you forgot it. Of
-course it will not add a \n if you are expecting no diagnostics. See below
-for help tracking down hard to find space and tab related problems.
+Note that Test::Builder ensures that any diagnostics end in a \n and
+it in earlier versions of Test::Tester it was essential that you have
+the final \n in your expected diagnostics. From version 0.10 onwards,
+Test::Tester will add the \n if you forgot it. It will not add a \n if
+you are expecting no diagnostics. See below for help tracking down
+hard to find space and tab related problems.
 
 =item depth
 
@@ -455,7 +457,7 @@ This allows you to check that your test module is setting the correct value
 for $Test::Builder::Level and thus giving the correct file and line number
 when a test fails. It is calculated by looking at caller() and
 $Test::Builder::Level. It should count how many subroutines there are before
-jumping into the function you are testing so for example in
+jumping into the function you are testing. So for example in
 
   run_tests( sub { my_test_function("a", "b") } );
 
@@ -465,9 +467,10 @@ the depth should be 1 and in
 
   run_tests(sub { deeper() });
 
-depth should be 2, that is 1 for the sub {} and one for deeper(). This might
-seem a little complex but unless you are calling your test functions inside
-subroutines or evals then depth will always be 1.
+depth should be 2, that is 1 for the sub {} and one for deeper(). This
+might seem a little complex but if your tests look like the simple
+examples in this doc then you don't need to worry as the depth will
+always be 1 and that's what Test::Tester expects by default.
 
 B<Note>: if you do not specify a value for depth in check_test() then it
 automatically compares it against 1, if you really want to skip the depth
@@ -478,11 +481,12 @@ signal handler or an END block or anywhere else that hides the call stack.
 
 =back
 
-Some of the Test::Testers functions return arrays of these hashes, just like
-Test::Builder->details. That is, the hash for the first test will be array
-element 1 (not 0). Element 0 will not be a hash it will be a string which
-contains any diagnostic output that came before the first test. This should
-usually be empty.
+Some of Test::Tester's functions return arrays of these hashes, just
+like Test::Builder->details. That is, the hash for the first test will
+be array element 1 (not 0). Element 0 will not be a hash it will be a
+string which contains any diagnostic output that came before the first
+test. This should usually be empty, if it's not, it means something
+output diagnostics before any test results showed up.
 
 =head1 SPACES AND TABS
 
@@ -531,7 +535,7 @@ variable also works (if both are set then the British spelling wins out).
 
 =head1 EXPORTED FUNCTIONS
 
-=head3 ($prem, @results) = run_tests(\&test_sub)
+=head3 ($premature, @results) = run_tests(\&test_sub)
 
 \&test_sub is a reference to a subroutine.
 
@@ -539,7 +543,8 @@ run_tests runs the subroutine in $test_sub and captures the results of any
 tests inside it. You can run more than 1 test inside this subroutine if you
 like.
 
-$prem is a string containing any diagnostic output from before the first test.
+$premature is a string containing any diagnostic output from before
+the first test.
 
 @results is an array of test result hashes.
 
@@ -565,7 +570,7 @@ number of elements in \@results and \@expects is the same. Then it goes
 through each result checking it against the expected result as in
 cmp_result() above.
 
-=head3 ($prem, @results) = check_tests(\&test_sub, \@expects, $name)
+=head3 ($premature, @results) = check_tests(\&test_sub, \@expects, $name)
 
 \&test_sub is a reference to a subroutine.
 
@@ -577,15 +582,16 @@ checks if the tests died at any stage.
 It returns the same values as run_tests, so you can further examine the test
 results if you need to.
 
-=head3 ($prem, @results) = check_test(\&test_sub, \%expect, $name)
+=head3 ($premature, @results) = check_test(\&test_sub, \%expect, $name)
 
 \&test_sub is a reference to a subroutine.
 
 \%expect is a ref to an hash of expected values for the test result.
 
 check_test is a wrapper around check_tests. It combines run_tests and
-cmp_tests into a single call, checking if the test died. It assumes that
-only a single test is run inside \&test_sub and test to make this is true.
+cmp_tests into a single call, checking if the test died. It assumes
+that only a single test is run inside \&test_sub and include a test to
+make sure this is true.
 
 It returns the same values as run_tests, so you can further examine the test
 results if you need to.
@@ -602,7 +608,7 @@ Test::Builder->new to get the Test::Builder object. Test::MyStyle calls
 methods on this object to record information about test results. When
 Test::Tester is loaded, it replaces Test::Builder's new() method with one
 which returns a Test::Tester::Delegate object. Most of the time this object
-appears to be the real Test::Builder object. Any methods that are called are
+behaves as the real Test::Builder object. Any methods that are called are
 delegated to the real Test::Builder object so everything works perfectly.
 However once we go into test mode, the method calls are no longer passed to
 the real Test::Builder object, instead they go to the Test::Tester::Capture
