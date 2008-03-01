@@ -27,7 +27,17 @@ my $Prem_Diag = {diag => ""};	 share($Curr_Test);
 
 sub new
 {
-	return __PACKAGE__;
+  # Test::Tester::Capgture::new used to just return __PACKAGE__
+  # because Test::Builder::new enforced it's singleton nature by
+  # return __PACKAGE__. That has since changed, Test::Builder::new now
+  # returns a blessed has and around version 0.78, Test::Builder::todo
+  # started wanting to modify $self. To cope with this, we now return
+  # a blessed hash. This is a short-term hack, the correct thing to do
+  # is to detect which style of Test::Builder we're dealing with and
+  # act appropriately.
+
+  my $class = shift;
+  return bless {}, $class;
 }
 
 sub ok {
